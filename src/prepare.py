@@ -1,87 +1,77 @@
-import random
-import unicodedata
+import json
 from pathlib import Path
-
-from more_itertools import divide, flatten
 from tap import Tap
-from tqdm import tqdm
-
-import src.utils as utils
-
+#from tqdm import tqdm
 
 class Args(Tap):
-    input_dir: Path = "./data/text"
-    output_dir: Path = "./datasets/livedoor"
-    seed: int = 42
+	category: str = ""
+	input_dir: Path = "data/tweeteval/"
+	output_dir: Path = "datasets/tweeteval/"
+	seed: int = 42
 
+def create_jsonl(text_path, labels_path, output_path, start_id):
+	with open(text_path, 'r', encoding='utf-8') as text_file:
+		texts = text_file.readlines()
 
-def process_title(title: str) -> str:
-    title = unicodedata.normalize("NFKC", title)
-    title = title.strip("　").strip()
-    return title
+	with open(labels_path, 'r', encoding='utf-8') as labels_file:
+		labels = labels_file.readlines()
 
+	with open(output_path, 'w', encoding='utf-8') as output_file:
+		for i, (text, label) in enumerate(zip(texts, labels)):
+			entry = {
+				"id": start_id + i,
+				"label": int(label.strip()),
+				"title": text.strip()
+			}
+			json.dump(entry, output_file)
+			output_file.write('\n')
+	return start_id + len(texts)
 
-# 記事本文の前処理
-# 重複した改行の削除、文頭の全角スペースの削除、NFKC正規化を実施
-def process_body(body: list[str]) -> str:
-    body = [unicodedata.normalize("NFKC", line) for line in body]
-    body = [line.strip("　").strip() for line in body]
-    body = [line for line in body if line]
-    body = "\n".join(body)
-    return body
+def get_folder_names(directory: Path):
+	folder_names = [folder.name for folder in directory.iterdir() if folder.is_dir()]
+	return folder_names
 
+def process_folder(input_dir: Path, output_dir: Path):
+	categories = get_folder_names(input_dir)
+	if categories:
+		for category in categories:
+			process_folder(input_dir/category, output_dir/category)
+	else:
+		args = Args().parse_args([])
+		args.input_dir = input_dir
+		args.output_dir = output_dir
+		print(f"Processing folder: {input_dir.name}")
+		print(f"args: {args}")
+		main(args)
 
 def main(args: Args):
-    random.seed(args.seed)
+	data_path = {
+		path.stem: path for path in list(args.input_dir.glob("*.txt"))
+	}
+	print(data_path)
+	modes = ["train", "val", "test"]
+	attributes = ["text", "labels", "out"]
 
-    data = []
-    labels = set()
+	mode_list = {
+			mode: {attr: f"{mode}_{attr}" for attr in attributes}
+			for mode in modes
+	}
 
-    for path in tqdm(list(args.input_dir.glob("*/*.txt"))):
-        if path.name == "LICENSE.txt":
-            continue
-        category = path.parent.name
-        labels.add(category)
+	args.output_dir.mkdir(parents=True, exist_ok=True)
 
-        # データフォーマット
-        # １行目：記事のURL
-        # ２行目：記事の日付
-        # ３行目：記事のタイトル
-        # ４行目以降：記事の本文
-        lines = path.read_text().splitlines()
+	start_id = 0
+	for mode, details in mode_list.items():
+		data_path[details["out"]] = args.output_dir / f"{mode}.jsonl"
 
-        data.append(
-            {
-                "category": category,
-                "category-id": path.stem,
-                "url": lines[0].strip(),
-                "date": lines[1].strip(),
-                "title": process_title(lines[2].strip()),
-                "body": process_body(lines[3:]),
-            }
-        )
-    random.shuffle(data)
+		start_id = create_jsonl(
+			data_path[details["text"]],
+			data_path[details["labels"]],
+			data_path[details["out"]],
+			start_id
+		)
 
-    label2id = {label: i for i, label in enumerate(sorted(labels))}
-    data = [
-        {
-            "id": idx,
-            "label": label2id[d["category"]],
-            **d,
-        }
-        for idx, d in enumerate(data)
-    ]
-
-    utils.save_jsonl(data, args.output_dir / "all.jsonl")
-    utils.save_json(label2id, args.output_dir / "label2id.json")
-
-    portions = list(divide(10, data))
-    train, val, test = list(flatten(portions[:-2])), portions[-2], portions[-1]
-    utils.save_jsonl(train, args.output_dir / "train.jsonl")
-    utils.save_jsonl(val, args.output_dir / "val.jsonl")
-    utils.save_jsonl(test, args.output_dir / "test.jsonl")
-
-
-if __name__ == "__main__":
-    args = Args().parse_args()
-    main(args)
+if __name__ == '__main__':
+	args = Args().parse_args()
+	base_input_dir = args.input_dir
+	base_output_dir = args.output_dir
+	process_folder(base_input_dir, base_output_dir)
