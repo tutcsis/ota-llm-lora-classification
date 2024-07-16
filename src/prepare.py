@@ -4,7 +4,6 @@ from tap import Tap
 #from tqdm import tqdm
 
 class Args(Tap):
-	category: str = ""
 	input_dir: Path = "data/tweeteval/"
 	output_dir: Path = "datasets/tweeteval/"
 	seed: int = 42
@@ -40,15 +39,15 @@ def process_folder(input_dir: Path, output_dir: Path):
 		args = Args().parse_args([])
 		args.input_dir = input_dir
 		args.output_dir = output_dir
-		print(f"Processing folder: {input_dir.name}")
-		print(f"args: {args}")
-		main(args)
+		#print(f"Processing folder: {input_dir.name}")
+		#print(f"args: {args}")
+		process_category(args)
 
-def main(args: Args):
+def process_category(args: Args):
 	data_path = {
 		path.stem: path for path in list(args.input_dir.glob("*.txt"))
 	}
-	print(data_path)
+	#print(data_path)
 	modes = ["train", "val", "test"]
 	attributes = ["text", "labels", "out"]
 
@@ -56,6 +55,7 @@ def main(args: Args):
 			mode: {attr: f"{mode}_{attr}" for attr in attributes}
 			for mode in modes
 	}
+	print(mode_list)
 
 	args.output_dir.mkdir(parents=True, exist_ok=True)
 
