@@ -1,6 +1,8 @@
 import json
+import pandas as pd
 from pathlib import Path
 from tap import Tap
+
 #from tqdm import tqdm
 
 class Args(Tap):
@@ -26,28 +28,43 @@ def create_jsonl(text_path, labels_path, output_path, start_id):
 			output_file.write('\n')
 	return start_id + len(texts)
 
+def create_label2id(mapping_path: Path, out_path: Path):
+	print(mapping_path)
+	mappings = pd.read_csv(mapping_path, sep='\t', header=None)
+	mapping_dict = dict(zip(mappings[1], mappings[0]))
+	#print('aa:', mapping_path)
+	#print(mapping_dict)
+	print('------')
+	with open(out_path, 'w', encoding='utf-8') as json_file:
+		json.dump(mapping_dict, json_file, ensure_ascii=False, indent=2)
+
+
 def get_folder_names(directory: Path):
 	folder_names = [folder.name for folder in directory.iterdir() if folder.is_dir()]
 	return folder_names
 
-def process_folder(input_dir: Path, output_dir: Path):
+def process_folder(input_dir: Path, output_dir: Path, cur_category = None):
 	categories = get_folder_names(input_dir)
 	if categories:
 		for category in categories:
-			process_folder(input_dir/category, output_dir/category)
+			if not cur_category:
+				cur_category = category
+			#print(category)
+			process_folder(input_dir/category, output_dir/category, cur_category)
 	else:
 		args = Args().parse_args([])
 		args.input_dir = input_dir
 		args.output_dir = output_dir
 		#print(f"Processing folder: {input_dir.name}")
 		#print(f"args: {args}")
-		process_category(args)
+		process_category(args, cur_category)
 
-def process_category(args: Args):
+def process_category(args: Args, category):
+	print(category)
 	data_path = {
 		path.stem: path for path in list(args.input_dir.glob("*.txt"))
 	}
-	#print(data_path)
+	
 	modes = ["train", "val", "test"]
 	attributes = ["text", "labels", "out"]
 
@@ -55,7 +72,21 @@ def process_category(args: Args):
 			mode: {attr: f"{mode}_{attr}" for attr in attributes}
 			for mode in modes
 	}
-	print(mode_list)
+	mapping_path = data_path.get('mapping')
+	if mapping_path:
+		# other stance
+		out_path = args.output_dir / "mapping.json"
+	else:
+		# where stance
+		mapping_path = args.input_dir.parent / "mapping.txt"
+		out_path = args.output_dir.parent / "mapping.json"
+	print(mapping_path, out_path)
+
+	if out_path.exists():
+		print("Yes")
+	else:
+		create_label2id(mapping_path, out_path)
+		print("No")
 
 	args.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,4 +105,4 @@ if __name__ == '__main__':
 	args = Args().parse_args()
 	base_input_dir = args.input_dir
 	base_output_dir = args.output_dir
-	process_folder(base_input_dir, base_output_dir)
+	process_folder(base_input_dir, base_output_dir, cur_category=None)
