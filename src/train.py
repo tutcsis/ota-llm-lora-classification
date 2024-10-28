@@ -15,10 +15,16 @@ from transformers.tokenization_utils import BatchEncoding, PreTrainedTokenizer
 import src.utils as utils
 from src.models import Model
 
+from transformers import file_utils
+import os
+import json
 
 class Args(Tap):
-	model_name: str = "rinna/japanese-gpt-neox-3.6b"
-	dataset_dir: Path = "./datasets/tweeteval/emotion"
+	#model_name: str = "llm-jp/llm-jp-3-3.7b-instruct"
+	model_name: str = "tokyotech-llm/Swallow-7b-hf"
+	#model_name: str = "rinna/bilingual-gpt-neox-4b"
+	#model_name: str = "rinna/japanese-gpt-neox-3.6b"
+	dataset_dir: Path = "./datasets/tweeteval/stance/atheism"
 
 	batch_size: int = 32
 	epochs: int = 10
@@ -71,6 +77,8 @@ class Experiment:
 			gradient_checkpointing=args.gradient_checkpointing,
 		).eval()
 		self.model.write_trainable_params()
+		# llm-jp/llm-jp-3-3.7b-instruct doesn't need token_type_ids
+		self.tokenizer.model_input_names.remove("token_type_ids")
 
 		self.train_dataloader = self.load_dataset(split="train", shuffle=True)
 		steps_per_epoch: int = len(self.train_dataloader)
@@ -102,15 +110,21 @@ class Experiment:
 
 	def build_input(self, title: str) -> str:
 		if self.args.template_type == 0:
-			return f"タイトル: {title}\nラベル: "
+			return f"tweet: {title}\nlabel: "
 		elif self.args.template_type == 1:
-			return f"タイトル: {title}"
+			return f"tweet: {title}"
 		elif self.args.template_type == 2:
 			return f"{title}"
 
 	def collate_fn(self, data_list: list[dict]) -> BatchEncoding:
 		title = [d["title"] for d in data_list]
 		text = [self.build_input(t) for t in title]
+
+
+		if self.tokenizer.pad_token is None:
+			print(self.tokenizer.special_tokens_map)
+			self.tokenizer.pad_token = self.tokenizer.eos_token
+			print(self.tokenizer.special_tokens_map)
 
 		inputs: BatchEncoding = self.tokenizer(
 			text,
@@ -174,9 +188,11 @@ class Experiment:
 		best_state_dict = self.model.clone_state_dict()
 		self.log(val_metrics)
 
+		loss_epoch_list = []
 		for epoch in trange(self.args.epochs, dynamic_ncols=True):
 			self.model.train()
 
+			loss_list = []
 			for batch in tqdm(
 				self.train_dataloader,
 				total=len(self.train_dataloader),
@@ -186,10 +202,13 @@ class Experiment:
 				self.optimizer.zero_grad()
 				out: SequenceClassifierOutput = self.model(**batch)
 				loss: torch.FloatTensor = out.loss
+				loss_list.append(loss.item())
 				self.accelerator.backward(loss)
 
 				self.optimizer.step()
 				self.lr_scheduler.step()
+
+			loss_epoch_list.append({'epoch': epoch, 'losses': loss_list})
 
 			self.model.eval()
 			val_metrics = {"epoch": epoch, **self.evaluate(self.val_dataloader)}
@@ -199,6 +218,11 @@ class Experiment:
 				best_val_f1 = val_metrics["f1"]
 				best_epoch = epoch
 				best_state_dict = self.model.clone_state_dict()
+
+		#with open('losses.txt', 'w') as f:
+		#	json.dump(loss_epoch_list, f, indent=2)
+		#print('output losses collected!!')
+
 
 		self.model.load_state_dict(best_state_dict)
 		self.model.eval()
@@ -218,7 +242,6 @@ class Experiment:
 
 			batch_size: int = batch.input_ids.size(0)
 			loss = out.loss.item() * batch_size
-
 			pred_labels += out.logits.argmax(dim=-1).tolist()
 			gold_labels += batch.labels.tolist()
 			total_loss += loss
@@ -254,6 +277,10 @@ class Experiment:
 
 def main(args: Args):
 	exp = Experiment(args=args)
+	print('---- cache place ----')
+	print(file_utils.default_cache_path)
+	file_utils.default_cache_path = '/work/s245302/.cache/huggingface/'
+	print(file_utils.default_cache_path)
 	val_metrics, test_metrics = exp.run()
 
 	utils.save_json(val_metrics, args.output_dir / "val-metrics.json")
@@ -262,6 +289,7 @@ def main(args: Args):
 
 
 if __name__ == "__main__":
+	#os.environ['HF_HOME'] = 'cache/'
 	args = Args().parse_args()
 	utils.init(seed=args.seed)
 	print('OK')

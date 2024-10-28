@@ -75,11 +75,11 @@ def process_category(args: Args, category):
 	mapping_path = data_path.get('mapping')
 	if mapping_path:
 		# other stance
-		out_path = args.output_dir / "mapping.json"
+		out_path = args.output_dir / "label2id.json"
 	else:
 		# where stance
 		mapping_path = args.input_dir.parent / "mapping.txt"
-		out_path = args.output_dir.parent / "mapping.json"
+		out_path = args.output_dir / "label2id.json"
 	print(mapping_path, out_path)
 
 	if out_path.exists():

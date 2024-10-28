@@ -168,3 +168,11 @@ cython_debug/
 
 
 src/sample.py
+tweeteval
+train.sh.o*
+train.sh.e*
+imgs
+csv_data
+losses.txt
+sample.sh
+train.sh
