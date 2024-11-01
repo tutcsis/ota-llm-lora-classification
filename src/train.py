@@ -20,11 +20,16 @@ import os
 import json
 
 class Args(Tap):
-	#model_name: str = "llm-jp/llm-jp-3-3.7b-instruct"
-	model_name: str = "tokyotech-llm/Swallow-7b-hf"
-	#model_name: str = "rinna/bilingual-gpt-neox-4b"
+	def __init__(self, label: str):
+		super().__init__()
+		print('AAA')
+		dataset_dir = Path("./datasets/tweeteval/" + label)
+		self.dataset_dir = dataset_dir
+
+	model_name: str = "llm-jp/llm-jp-3-3.7b-instruct"
+	#model_name: str = "tokyotech-llm/Swallow-7b-hf"
+	model_name: str = "rinna/bilingual-gpt-neox-4b"
 	#model_name: str = "rinna/japanese-gpt-neox-3.6b"
-	dataset_dir: Path = "./datasets/tweeteval/stance/atheism"
 
 	batch_size: int = 32
 	epochs: int = 10
@@ -78,7 +83,8 @@ class Experiment:
 		).eval()
 		self.model.write_trainable_params()
 		# llm-jp/llm-jp-3-3.7b-instruct doesn't need token_type_ids
-		self.tokenizer.model_input_names.remove("token_type_ids")
+		if "token_type_ids" in self.tokenizer.model_input_names:
+			self.tokenizer.model_input_names.remove("token_type_ids")
 
 		self.train_dataloader = self.load_dataset(split="train", shuffle=True)
 		steps_per_epoch: int = len(self.train_dataloader)
@@ -290,7 +296,9 @@ def main(args: Args):
 
 if __name__ == "__main__":
 	#os.environ['HF_HOME'] = 'cache/'
-	args = Args().parse_args()
-	utils.init(seed=args.seed)
-	print('OK')
-	main(args)
+	labels = ["emoji", "emotion", "hate", "irony", "offensive", "sentiment", "stance/abortion", "stance/atheism", "stance/climate", "stance/feminist", "stance/hillary"]
+	for label in labels:
+		args = Args(label=label).parse_args()
+		utils.init(seed=args.seed)
+		print('OK')
+		main(args)
