@@ -26,9 +26,9 @@ class Args(Tap):
 		dataset_dir = Path("./datasets/tweeteval/" + label)
 		self.dataset_dir = dataset_dir
 
-	model_name: str = "llm-jp/llm-jp-3-3.7b-instruct"
-	#model_name: str = "tokyotech-llm/Swallow-7b-hf"
-	model_name: str = "rinna/bilingual-gpt-neox-4b"
+	# model_name: str = "llm-jp/llm-jp-3-13b"
+	model_name: str = "tokyotech-llm/Swallow-13b-hf"
+	# model_name: str = "rinna/bilingual-gpt-neox-4b"
 	#model_name: str = "rinna/japanese-gpt-neox-3.6b"
 
 	batch_size: int = 32

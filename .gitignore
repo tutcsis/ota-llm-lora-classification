@@ -176,3 +176,4 @@ csv_data
 losses.txt
 sample.sh
 train.sh
+log

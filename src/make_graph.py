@@ -24,13 +24,13 @@ def out_graph(data_path, output_path, label, param1, param2=None):
 	plt.close()
 
 if __name__ == '__main__':
-	#accuracy_path = "accuracy_list.csv"
-	#loss_path = "loss_list.csv"
-	#accuracy_out_path = "accuracy_graph.png"
+	accuracy_path = "accuracy_list.csv"
+	# loss_path = "loss_list.csv"
+	accuracy_out_path = "accuracy_graph.png"
 	#loss_out_path = "loss_out.png"
-	log_path = "log.csv"
-	log_out_path = "llmjp_atheism_log.png"
+	# log_path = "log.csv"
+	# log_out_path = "llmjp_atheism_log.png"
 
-	#out_graph(accuracy_path, accuracy_out_path, label='category', param1='val_score', param2='test_score')
+	out_graph(accuracy_path, accuracy_out_path, label='category', param1='val_score', param2='test_score')
 	#out_graph(loss_path, loss_out_path, label='category', param1='val_score', param2='test_score')
-	out_graph(log_path, log_out_path, label='epoch', param1='loss')
+	# out_graph(log_path, log_out_path, label='epoch', param1='loss')

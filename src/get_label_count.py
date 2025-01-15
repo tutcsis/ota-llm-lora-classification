@@ -31,7 +31,7 @@ def output_label_count(category_name):
 	df.to_csv(f'csv_data/tweeteval/{category_name}.csv', index=True)
 
 	# markdown
-	markdown_table = df.to_markdown(index=False)
+	markdown_table = df.to_markdown(index=True)
 	print('\n' + category_name + '\n')
 	print(markdown_table)
 

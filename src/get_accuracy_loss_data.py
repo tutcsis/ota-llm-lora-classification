@@ -22,11 +22,17 @@ def output_accuracy_loss_csv(category_paths, category_names, output_name):
 			val_metric_data = json.load(f)
 
 		# print(val_metric_data['loss'], val_metric_data['accuracy'])
-		df.loc[category_name, 'val-loss'] = round(test_metric_data['loss'], 5)
-		df.loc[category_name, 'val-accuracy'] = round(test_metric_data['accuracy'], 5)
+		df.loc[category_name, 'val-loss'] = round(val_metric_data['loss'], 5)
+		df.loc[category_name, 'val-accuracy'] = round(val_metric_data['accuracy'], 5)
 
+	df = df.sort_index(axis=0)
 	print(df)
 	df.to_csv(f'csv_data/{output_name}.csv', index=True)
+
+	# markdown
+	markdown_table = df.to_markdown(index=True)
+	print('\n' + output_name + '\n')
+	print(markdown_table)
 
 
 
